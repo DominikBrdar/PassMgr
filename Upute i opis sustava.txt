@@ -1,0 +1,61 @@
+
+Upute za korištenje:
+Zip arhivu sa izvornim programskim kodom treba raspakirati na željeno mjesto na disku 
+(tamo će se čuvati i datoteka sa šifriranim podacima pod nazivom "cipher_file")
+
+Izvorni kod je piasn u programskom jeziku Python 3.6 
+i koristi paket PyCryptodome koji se može postaviti pozivanjem sljedećih linija koda u terminalu
+$ sudo apt-get install build-essential python3-dev
+$ pip install pycryptodomex
+$ python3 -m Cryptodome.SelfTest
+
+Programom se upravlja navođenjem zaporke i naredbi kao argumente prilikom pokretanja programa iz komandne linije
+npr: $  python3 "./putanja-do-izvornog-koda" init mAsterPasswrd
+
+--> Funkcionalni zahtjevi su ostvareni na sljedeći način:
+Naredbe "init", "get" ili "put" se predaju preko argumenata kao prvi dodatni argument prilikom poziva programa
+# Prije prvog korištenja (ili ako je došlo do narušenja integriteta), potrebno je inicijalizirati program naredbom "init"
+#    Ako je sustav već inicijaliziran, ova naredba samo provjerava integritet
+#    Ako je integritet narušen potrebno je obrisati datoteku "cipher_file" i ponovo inicijalizirati program
+
+# Naredba "get" nakon koje slijedi glavna zaporka, a zatim adresa za koju je potrebno dohvatiti zaporku dohvaća zaporku za tu adresu i ispisuje je u terminalu
+
+# Naredba "put" nakon koje slijedi glavna zaporka, a zatim adresa i zaporka koju treba pohraniti za tu adresu sprema par adrese i zaporke u šifriranom obliku 
+
+# Naredba "-l" nakon koje slijedi glavna zaporka ispisuje sve adrese za koje postoji phranjena zaporka ali ne i zaporke
+
+#   Ove tri naredbe također ponovo kriptiraju podatke sa novim ključem deriviranim iz glavne zaporke,
+    -> Budući da je jedna pretpostavka: 
+       Napadač tijekom vremena može prikupiti više verzija datoteka baze podataka alata na disku zaštićenih istom glavnom zaporkom. 
+    Potrebno je dodatno osigurati sustav na način da se 
+    prilikom svake promjene šifrirane datoteke ponovo određuje nasumični vektor 
+    koji se koristi u funkciji derivacije ključa iz glavne zaporke, 
+    (s time se ključ za kriptiranje mijenja i dešifrirani tekst ponovo šifrira novim ključem prilikom svake radnje na šifriranoj datoteci,
+    a zatim se i oznaka za provjeru integriteta ponovo šifrira sa jednom polovicom novog ključa,
+     druga polovica se koristi za računanje oznake za provjeru integriteta)
+
+--> Dodatno objašnjenje sustava i zadovoljavanja sigurnosnih zahtjeva:
+# Budući da su sigurnosni zahtjevi povjerljivost adresa i povjerljivost zaporki
+ sustav je dizajniran na način da sve parove adresa i zaporki sprema kao jedan string odvojen razmacima 
+ kojeg zatim pretvara u niz baytova koji se kriptiraju AES simetričnom blok kriptografijom i šifrirani tekst se kao takav
+ sprema u obliku byte datoteke 
+ koja u zaglavlju u prvih 32 bayta sprema nasumični vektor za funkciju derivacije ključuva 
+  i pomak po čitaču datoteke do pozicije od koje se čita oznaka za provjeru integriteta
+
+ -> Na taj način napadač ne može znati niti koliko ima parova adresa-zaporka niti njihove duljine
+ -> Svaki puta kada se dešifrira, makar se zaporka postavi na istu kao prije, 
+    ponovo se sve kriptira sa drugačijim nasumičnim inicijalizacijskim vektorom za AES
+    Kako bi se kasnije šifrirani tekst mogao dešifrirati, inicijalizacijski vektor je također dio zaglavlja cipher_file datoteke 
+     i također se uzima u obzir prilikom računanja oznake integriteta
+
+# Sigurnosni zahtjev za integritet je ostvaren 
+ -> korištenjem kriptografske funkcije hash-iranja HMAC 
+    za koju sa kao ključ uzima polovica deriviranog ključa 
+    i obrađuje se niz bajtova od 16. bajta u zapisu 
+    (isključuje salt jer provjera ionako ovisi o tome)
+    do pozicije na kojoj završava šifrirani dio
+
+    --> stoga će bilo koje neovlaštene promjene bilo kojih bitova u cipher_file
+     program odmah prepoznati i javiti da je došlo do narušavanja integriteta 
+
+Dodatna dokumentacija se nalazi unutar teksta izvornog koda u obliku komentara
